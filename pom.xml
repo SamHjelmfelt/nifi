@@ -19,7 +19,7 @@
     </parent>
     <groupId>org.apache.nifi</groupId>
     <artifactId>nifi</artifactId>
-    <version>1.9.0-SNAPSHOT</version>
+    <version>1.10.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <description>Apache NiFi is an easy to use, powerful, and reliable system to process and distribute data.</description>
     <modules>
@@ -94,6 +94,7 @@
         <org.slf4j.version>1.7.25</org.slf4j.version>
         <ranger.version>1.0.0</ranger.version>
         <jetty.version>9.4.11.v20180605</jetty.version>
+        <jackson.version>2.9.8</jackson.version>
     </properties>
 
     <repositories>
@@ -681,6 +682,11 @@
                                 <phase>verify</phase>
                                 <configuration>
                                     <encoding>UTF-8</encoding>
+                                    <excludes>**/generated-sources/**/*</excludes>
+                                    <sourceDirectories>
+                                        <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
+                                        <sourceDirectory>${project.build.testSourceDirectory}</sourceDirectory>
+                                    </sourceDirectories>
                                 </configuration>
                                 <goals>
                                     <goal>check</goal>
