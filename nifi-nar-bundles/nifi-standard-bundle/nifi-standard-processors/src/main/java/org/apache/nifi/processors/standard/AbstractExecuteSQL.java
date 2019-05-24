@@ -33,8 +33,8 @@ import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.processors.standard.sql.SqlWriter;
-import org.apache.nifi.processors.standard.util.JdbcCommon;
 import org.apache.nifi.util.StopWatch;
+import org.apache.nifi.util.db.JdbcCommon;
 
 import java.nio.charset.Charset;
 import java.sql.Connection;
@@ -312,6 +312,11 @@ public abstract class AbstractExecuteSQL extends AbstractProcessor {
                                 // If we've reached the batch size, send out the flow files
                                 if (outputBatchSize > 0 && resultSetFlowFiles.size() >= outputBatchSize) {
                                     session.transfer(resultSetFlowFiles, REL_SUCCESS);
+                                    // Need to remove the original input file if it exists
+                                    if (fileToProcess != null) {
+                                        session.remove(fileToProcess);
+                                        fileToProcess = null;
+                                    }
                                     session.commit();
                                     resultSetFlowFiles.clear();
                                 }

@@ -60,11 +60,17 @@
 
     // the dimensions for the connection label
     var dimensions = {
-        width: 216
+        width: 224
     };
 
     // width of a backpressure indicator - half of width, left/right padding, left/right border
     var backpressureBarWidth = (dimensions.width / 2) - 15 - 2;
+
+    // --------------------------
+    // Snap alignment for drag events
+    // --------------------------
+    var snapAlignmentPixels = 8;
+    var snapEnabled = true;
 
     /**
      * Gets the position of the label for the specified connection.
@@ -896,7 +902,7 @@
                                 connectionFrom.append('text')
                                     .attrs({
                                         'class': 'connection-from-run-status',
-                                        'x': 200,
+                                        'x': 208,
                                         'y': 14
                                     });
                             } else {
@@ -1005,7 +1011,7 @@
                                 connectionTo.append('text')
                                     .attrs({
                                         'class': 'connection-to-run-status',
-                                        'x': 200,
+                                        'x': 208,
                                         'y': 14
                                     });
                             } else {
@@ -1221,7 +1227,7 @@
                         queued.append('text')
                             .attrs({
                                 'class': 'expiration-icon',
-                                'x': 200,
+                                'x': 208,
                                 'y': 14
                             })
                             .text(function () {
@@ -1381,7 +1387,7 @@
                             return d.permissions.canRead && !isExpirationConfigured(d.component);
 
                         }).attr('x', function() {
-                            return d.permissions.canRead && isExpirationConfigured(d.component) ? 184 : 200;
+                            return d.permissions.canRead && isExpirationConfigured(d.component) ? 192 : 208;
 
                         }).select('title').text(function () {
                             if (d.permissions.canRead) {
@@ -1608,23 +1614,16 @@
         }).done(function (response) {
             // request was successful, update the entry
             nfConnection.set(response);
-        }).fail(function (xhr, status, error) {
-            if (xhr.status === 400 || xhr.status === 404 || xhr.status === 409) {
-                nfDialog.showOkDialog({
-                    headerText: 'Connection',
-                    dialogContent: nfCommon.escapeHtml(xhr.responseText)
-                });
-            } else {
-                nfErrorHandler.handleAjaxError(xhr, status, error);
-            }
-        });
+        }).fail(nfErrorHandler.handleConfigurationUpdateAjaxError);
     };
 
     // removes the specified connections
     var removeConnections = function (removed) {
         // consider reloading source/destination of connection being removed
         removed.each(function (d) {
-            nfCanvasUtils.reloadConnectionSourceAndDestination(d.sourceId, d.destinationId);
+            var sourceComponentId = nfCanvasUtils.getConnectionSourceComponentId(d);
+            var destinationComponentId = nfCanvasUtils.getConnectionDestinationComponentId(d);
+            nfCanvasUtils.reloadConnectionSourceAndDestination(sourceComponentId, destinationComponentId);
         });
 
         // remove the connection
@@ -1678,8 +1677,9 @@
                     d3.event.sourceEvent.stopPropagation();
                 })
                 .on('drag', function (d) {
-                    d.x = d3.event.x;
-                    d.y = d3.event.y;
+                    snapEnabled = !d3.event.sourceEvent.shiftKey;
+                    d.x = snapEnabled ? (Math.round(d3.event.x/snapAlignmentPixels) * snapAlignmentPixels) : d3.event.x;
+                    d.y = snapEnabled ? (Math.round(d3.event.y/snapAlignmentPixels) * snapAlignmentPixels) : d3.event.y;
 
                     // redraw this connection
                     d3.select(this.parentNode).call(updateConnections, {
@@ -1760,7 +1760,7 @@
                     // get the corresponding connection
                     var connection = d3.select(this.parentNode);
                     var connectionData = connection.datum();
-                    var previousDestinationId = connectionData.destinationId;
+                    var previousDestinationComponentId = nfCanvasUtils.getConnectionDestinationComponentId(connectionData);
 
                     // attempt to select a new destination
                     var destination = d3.select('g.connectable-destination');
@@ -1777,7 +1777,7 @@
                             // user will select new port and updated connect details will be set accordingly
                             nfConnectionConfiguration.showConfiguration(connection, destination).done(function () {
                                 // reload the previous destination
-                                nfCanvasUtils.reloadConnectionSourceAndDestination(null, previousDestinationId);
+                                nfCanvasUtils.reloadConnectionSourceAndDestination(null, previousDestinationComponentId);
                             }).fail(function () {
                                 // reset the connection
                                 connection.call(updateConnections, {
@@ -1836,8 +1836,11 @@
                                 nfConnection.set(response);
 
                                 // reload the previous destination and the new source/destination
-                                nfCanvasUtils.reloadConnectionSourceAndDestination(null, previousDestinationId);
-                                nfCanvasUtils.reloadConnectionSourceAndDestination(response.sourceId, response.destinationId);
+                                nfCanvasUtils.reloadConnectionSourceAndDestination(null, previousDestinationComponentId);
+
+                                var sourceComponentId = nfCanvasUtils.getConnectionSourceComponentId(response);
+                                var destinationComponentId = nfCanvasUtils.getConnectionSourceComponentId(response);
+                                nfCanvasUtils.reloadConnectionSourceAndDestination(sourceComponentId, destinationComponentId);
                             }).fail(function (xhr, status, error) {
                                 if (xhr.status === 400 || xhr.status === 401 || xhr.status === 403 || xhr.status === 404 || xhr.status === 409) {
                                     nfDialog.showOkDialog({

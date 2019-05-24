@@ -79,6 +79,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -92,6 +93,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.notNull;
@@ -190,7 +192,7 @@ public class TestStandardProcessSession {
 
         contentRepo = new MockContentRepository();
         contentRepo.initialize(new StandardResourceClaimManager());
-        flowFileRepo = new MockFlowFileRepository();
+        flowFileRepo = new MockFlowFileRepository(contentRepo);
 
         context = new RepositoryContext(connectable, new AtomicLong(0L), contentRepo, flowFileRepo, flowFileEventRepo, counterRepo, provenanceRepo);
         session = new StandardProcessSession(context, () -> false);
@@ -323,6 +325,60 @@ public class TestStandardProcessSession {
         }
     }
 
+
+    @Test
+    public void testUpdateFlowFileRepoFailsOnSessionCommit() throws IOException {
+        final ContentClaim contentClaim = contentRepo.create("original".getBytes());
+
+        final FlowFileRecord flowFileRecord = new StandardFlowFileRecord.Builder()
+            .id(1000L)
+            .addAttribute("uuid", "12345678-1234-1234-1234-123456789012")
+            .entryDate(System.currentTimeMillis())
+            .size(8L)
+            .contentClaim(contentClaim)
+            .build();
+
+        flowFileQueue.put(flowFileRecord);
+
+        final Relationship relationship = new Relationship.Builder().name("A").build();
+
+        FlowFile ff1 = session.get();
+        assertNotNull(ff1);
+
+        // Fork a child FlowFile.
+        final FlowFile child = session.create(flowFileRecord);
+        final FlowFile updated = session.write(flowFileRecord, out -> out.write("update".getBytes()));
+        final ContentClaim updatedContentClaim = ((FlowFileRecord) updated).getContentClaim();
+
+        session.remove(updated);
+        final FlowFile updatedChild = session.write(child, out -> out.write("hello".getBytes(StandardCharsets.UTF_8)));
+        session.transfer(updatedChild, relationship);
+
+        final ContentClaim childContentClaim = ((FlowFileRecord) updatedChild).getContentClaim();
+
+        flowFileRepo.setFailOnUpdate(true);
+
+        assertEquals(1, contentRepo.getClaimantCount(contentClaim));
+
+        // these will be the same content claim due to how the StandardProcessSession adds multiple FlowFiles' contents to a single claim.
+        assertSame(updatedContentClaim, childContentClaim);
+        assertEquals(2, contentRepo.getClaimantCount(childContentClaim));
+
+        try {
+            session.commit();
+            Assert.fail("Expected session commit to fail");
+        } catch (final ProcessException pe) {
+            // Expected
+        }
+
+        // Ensure that if we fail to update teh flowfile repo, that the claimant count of the 'original' flowfile, which was removed, does not get decremented.
+        assertEquals(1, contentRepo.getClaimantCount(contentClaim));
+        assertEquals(0, contentRepo.getClaimantCount(updatedContentClaim)); // temporary claim should be cleaned up.
+        assertEquals(0, contentRepo.getClaimantCount(childContentClaim)); // temporary claim should be cleaned up.
+
+        assertEquals(1, flowFileQueue.size().getObjectCount());
+        assertEquals(8L, flowFileQueue.size().getByteCount());
+    }
 
     @Test
     public void testCloneOriginalDataSmaller() throws IOException {
@@ -2094,6 +2150,11 @@ public class TestStandardProcessSession {
         private boolean failOnUpdate = false;
         private final AtomicLong idGenerator = new AtomicLong(0L);
         private final List<RepositoryRecord> updates = new ArrayList<>();
+        private final ContentRepository contentRepo;
+
+        public MockFlowFileRepository(final ContentRepository contentRepo) {
+            this.contentRepo = contentRepo;
+        }
 
         public void setFailOnUpdate(final boolean fail) {
             this.failOnUpdate = fail;
@@ -2123,6 +2184,16 @@ public class TestStandardProcessSession {
                 throw new IOException("FlowFile Repository told to fail on update for unit test");
             }
             updates.addAll(records);
+
+            for (final RepositoryRecord record : records) {
+                if (record.getType() == RepositoryRecordType.DELETE) {
+                    contentRepo.decrementClaimantCount(record.getCurrentClaim());
+                }
+
+                if (!Objects.equals(record.getOriginalClaim(), record.getCurrentClaim())) {
+                    contentRepo.decrementClaimantCount(record.getOriginalClaim());
+                }
+            }
         }
 
         public List<RepositoryRecord> getUpdates() {
@@ -2188,11 +2259,9 @@ public class TestStandardProcessSession {
         public Set<ContentClaim> getExistingClaims() {
             final Set<ContentClaim> claims = new HashSet<>();
 
-            for (long i = 0; i < idGenerator.get(); i++) {
-                final ResourceClaim resourceClaim = resourceClaimManager.newResourceClaim("container", "section", String.valueOf(i), false, false);
-                final ContentClaim contentClaim = new StandardContentClaim(resourceClaim, 0L);
-                if (getClaimantCount(contentClaim) > 0) {
-                    claims.add(contentClaim);
+            for (final Map.Entry<ContentClaim, AtomicInteger> entry : claimantCounts.entrySet()) {
+                if (entry.getValue().get() > 0) {
+                    claims.add(entry.getKey());
                 }
             }
 

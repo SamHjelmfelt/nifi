@@ -153,7 +153,7 @@ public class HandleHttpRequest extends AbstractProcessor {
             .description("The Port to listen on for incoming HTTP requests")
             .required(true)
             .addValidator(StandardValidators.createLongValidator(0L, 65535L, true))
-            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .defaultValue("80")
             .build();
     public static final PropertyDescriptor HOSTNAME = new PropertyDescriptor.Builder()
@@ -326,7 +326,7 @@ public class HandleHttpRequest extends AbstractProcessor {
         }
         this.containerQueue = new LinkedBlockingQueue<>(context.getProperty(CONTAINER_QUEUE_SIZE).asInteger());
         final String host = context.getProperty(HOSTNAME).getValue();
-        final int port = context.getProperty(PORT).asInteger();
+        final int port = context.getProperty(PORT).evaluateAttributeExpressions().asInteger();
         final SSLContextService sslService = context.getProperty(SSL_CONTEXT).asControllerService(SSLContextService.class);
         final HttpContextMap httpContextMap = context.getProperty(HTTP_CONTEXT_MAP).asControllerService(HttpContextMap.class);
         final long requestTimeout = httpContextMap.getRequestTimeout(TimeUnit.MILLISECONDS);
@@ -505,6 +505,11 @@ public class HandleHttpRequest extends AbstractProcessor {
         sslFactory.setWantClientAuth(wantClientAuth);
 
         sslFactory.setProtocol(sslService.getSslAlgorithm());
+
+        // Need to set SslContextFactory's endpointIdentificationAlgorithm to null; this is a server,
+        // not a client.  Server does not need to perform hostname verification on the client.
+        // Previous to Jetty 9.4.15.v20190215, this defaulted to null.
+        sslFactory.setEndpointIdentificationAlgorithm(null);
 
         if (sslService.isKeyStoreConfigured()) {
             sslFactory.setKeyStorePath(sslService.getKeyStoreFile());
