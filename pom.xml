@@ -9,7 +9,7 @@
     License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
     OF ANY KIND, either express or implied. See the License for the specific
     language governing permissions and limitations under the License. -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.apache</groupId>
@@ -30,7 +30,6 @@
         <module>nifi-mock</module>
         <module>nifi-nar-bundles</module>
         <module>nifi-assembly</module>
-        <module>nifi-testharness</module>
         <module>nifi-docs</module>
         <module>nifi-maven-archetypes</module>
         <module>nifi-external</module>
@@ -38,15 +37,15 @@
         <module>nifi-stateless</module>
         <module>nifi-docker</module>
     </modules>
-    <url>http://nifi.apache.org</url>
+    <url>https://nifi.apache.org</url>
     <organization>
         <name>Apache NiFi Project</name>
-        <url>http://nifi.apache.org/</url>
+        <url>https://nifi.apache.org/</url>
     </organization>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
         </license>
     </licenses>
     <mailingLists>
@@ -55,21 +54,21 @@
             <subscribe>dev-subscribe@nifi.apache.org</subscribe>
             <unsubscribe>dev-unsubscribe@nifi.apache.org</unsubscribe>
             <post>dev@nifi.apache.org</post>
-            <archive>http://mail-archives.apache.org/mod_mbox/nifi-dev</archive>
+            <archive>https://mail-archives.apache.org/mod_mbox/nifi-dev</archive>
         </mailingList>
         <mailingList>
             <name>Users</name>
             <subscribe>users-subscribe@nifi.apache.org</subscribe>
             <unsubscribe>users-unsubscribe@nifi.apache.org</unsubscribe>
             <post>users@nifi.apache.org</post>
-            <archive>http://mail-archives.apache.org/mod_mbox/nifi-users</archive>
+            <archive>https://mail-archives.apache.org/mod_mbox/nifi-users</archive>
         </mailingList>
         <mailingList>
             <name>Commits</name>
             <subscribe>commits-subscribe@nifi.apache.org</subscribe>
             <unsubscribe>commits-unsubscribe@nifi.apache.org</unsubscribe>
             <post>commits@nifi.apache.org</post>
-            <archive>http://mail-archives.apache.org/mod_mbox/nifi-commits</archive>
+            <archive>https://mail-archives.apache.org/mod_mbox/nifi-commits</archive>
         </mailingList>
     </mailingLists>
     <prerequisites>
@@ -95,8 +94,8 @@
         <inceptionYear>2014</inceptionYear>
         <org.slf4j.version>1.7.26</org.slf4j.version>
         <ranger.version>1.0.0</ranger.version>
-        <jetty.version>9.4.15.v20190215</jetty.version>
-        <jackson.version>2.9.8</jackson.version>
+        <jetty.version>9.4.19.v20190610</jetty.version>
+        <jackson.version>2.9.9</jackson.version>
         <nifi.registry.version>0.4.0</nifi.registry.version>
     </properties>
 
@@ -127,7 +126,7 @@
         </repository>
         <repository>
             <id>jcenter</id>
-            <url>http://jcenter.bintray.com</url>
+            <url>https://jcenter.bintray.com</url>
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
@@ -220,13 +219,7 @@
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-core</artifactId>
-                <version>1.10.19</version>
-            </dependency>
-            <dependency>
-                <groupId>org.mockito</groupId>
-                <artifactId>mockito-all</artifactId>
-                <version>1.10.19</version>
-                <scope>test</scope>
+                <version>2.28.2</version>
             </dependency>
             <dependency>
                 <groupId>org.codehaus.groovy</groupId>
@@ -246,7 +239,12 @@
                 <version>1.3</version>
                 <scope>test</scope>
             </dependency>
-
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers</artifactId>
+                <version>1.11.3</version>
+                <scope>test</scope>
+            </dependency>
             <!-- These Jetty dependencies are required for the Jetty Web Server all nars extend from it so we dont want this getting overriden -->
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
@@ -442,12 +440,12 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-checkstyle-plugin</artifactId>
-                    <version>2.17</version>
+                    <version>3.0.0</version>
                     <dependencies>
                         <dependency>
                             <groupId>com.puppycrawl.tools</groupId>
                             <artifactId>checkstyle</artifactId>
-                            <version>8.12</version>
+                            <version>8.21</version>
                         </dependency>
                     </dependencies>
                 </plugin>
@@ -540,6 +538,7 @@
                         <module name="Checker">
                             <property name="charset" value="UTF-8" />
                             <property name="severity" value="warning" />
+                            <property name="cacheFile" value="target/checkstyleCache"/>
                             <!-- Checks for whitespace -->
                             <!-- See http://checkstyle.sf.net/config_whitespace.html -->
                             <module name="FileTabCharacter">
@@ -569,7 +568,7 @@
                                 <module name="LeftCurly" />
                                 <module name="RightCurly" />
                                 <module name="RightCurly">
-                                    <property name="option" value="alone" />
+                                    <property name="option" value="alone_or_singleline" />
                                     <property name="tokens" value="CLASS_DEF, METHOD_DEF, CTOR_DEF, LITERAL_FOR, LITERAL_WHILE, STATIC_INIT" />
                                 </module>
                                 <module name="SeparatorWrap">
@@ -600,6 +599,7 @@
                                 </module>
                                 <module name="NonEmptyAtclauseDescription" />
                                 <module name="JavadocMethod">
+                                    <property name="allowUndeclaredRTE" value="true" />
                                     <property name="allowMissingJavadoc" value="true" />
                                     <property name="allowMissingParamTags" value="true" />
                                     <property name="allowMissingThrowsTags" value="true" />
@@ -620,6 +620,7 @@
                 <artifactId>apache-rat-plugin</artifactId>
                 <configuration>
                     <consoleOutput>true</consoleOutput>
+                    <useIdeaDefaultExcludes>true</useIdeaDefaultExcludes>
                     <excludes>
                         <exclude>nb-configuration.xml</exclude> <!-- courtesy excludes for netbeans users -->
                         <exclude>nbactions.xml</exclude> <!-- courtesy excludes for netbeans users -->
@@ -704,9 +705,9 @@
             </build>
         </profile>
         <profile>
-            <!-- This profile will disable DocLint which performs strict 
-                JavaDoc processing which was introduced in JDK 8. These are technically errors 
-                in the JavaDoc which we need to eventually address. However, if a release 
+            <!-- This profile will disable DocLint which performs strict
+                JavaDoc processing which was introduced in JDK 8. These are technically errors
+                in the JavaDoc which we need to eventually address. However, if a release
                 is performed using JDK 8 or newer, the JavaDoc generation would fail. By activating
                 this profile when running on JDK 8 or newer we can ensure the JavaDocs continue to
                 generate successfully -->
@@ -743,7 +744,7 @@
                 <repository>
                     <id>hortonworks-releases</id>
                     <name>Hortonworks Repository</name>
-                    <url>http://repo.hortonworks.com/content/repositories/releases/</url>
+                    <url>https://repo.hortonworks.com/content/repositories/releases/</url>
                     <releases>
                         <enabled>true</enabled>
                         <updatePolicy>always</updatePolicy>
@@ -758,7 +759,7 @@
                 <repository>
                     <id>hortonworks-jetty</id>
                     <name>Hortonworks Jetty Repository</name>
-                    <url>http://repo.hortonworks.com/content/repositories/jetty-hadoop/</url>
+                    <url>https://repo.hortonworks.com/content/repositories/jetty-hadoop/</url>
                     <releases>
                         <enabled>true</enabled>
                         <updatePolicy>always</updatePolicy>
@@ -784,7 +785,7 @@
                 <repository>
                     <id>mapr-releases</id>
                     <name>MapR Repository</name>
-                    <url>http://repository.mapr.com/maven/</url>
+                    <url>https://repository.mapr.com/maven/</url>
                     <snapshots>
                         <enabled>false</enabled>
                     </snapshots>
